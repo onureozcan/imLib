@@ -3,36 +3,36 @@
 //
 #include <stdio.h>
 #include <imlib.h>
+#include <math.h>
 
+#define PI 3.14159265
 
 void line_test(image2d *image) {
-    im_brush2d brush = im_brush(2, 255);
-    image2d_draw_line(image, im_point(200, 200), im_point(22, 500), im_color(255, 255, 255, 255), brush);
+    im_point2d start = im_point(400, 400);
 
-    image2d_draw_line(image, im_point(400, 400), im_point(450, 500), im_color(255, 0, 0, 255), brush);
-    image2d_draw_line(image, im_point(400, 400), im_point(400, 500), im_color(0, 0, 255, 255), brush);
-    image2d_draw_line(image, im_point(400, 400), im_point(500, 500), im_color(0, 255, 0, 255), brush);
-    image2d_draw_line(image, im_point(400, 400), im_point(500, 450), im_color(0, 0, 255, 255), brush);
-    image2d_draw_line(image, im_point(400, 400), im_point(500, 400), im_color(255, 0, 0, 255), brush);
-    image2d_draw_line(image, im_point(400, 400), im_point(500, 350), im_color(0, 255, 0, 255), brush);
-    image2d_draw_line(image, im_point(400, 400), im_point(500, 300), im_color(0, 0, 255, 255), brush);
-    image2d_draw_line(image, im_point(400, 400), im_point(450, 300), im_color(255, 0, 0, 255), brush);
-    image2d_draw_line(image, im_point(400, 400), im_point(400, 300), im_color(0, 255, 0, 255), brush);
-    image2d_draw_line(image, im_point(400, 400), im_point(350, 300), im_color(0, 0, 255, 255), brush);
-    image2d_draw_line(image, im_point(400, 400), im_point(300, 300), im_color(255, 0, 0, 255), brush);
-    image2d_draw_line(image, im_point(400, 400), im_point(300, 350), im_color(0, 255, 0, 255), brush);
-    image2d_draw_line(image, im_point(400, 400), im_point(300, 400), im_color(0, 0, 255, 255), brush);
-    image2d_draw_line(image, im_point(400, 400), im_point(300, 450), im_color(255, 0, 0, 255), brush);
-    image2d_draw_line(image, im_point(400, 400), im_point(300, 500), im_color(0, 255, 0, 255), brush);
-    image2d_draw_line(image, im_point(400, 400), im_point(350, 500), im_color(255, 0, 0, 255), brush);
+    for (int y = 0; y < 7; y++) {
+        image2d_draw_line(image, im_point(100, 650 + y * 20), im_point(700, 650 + y * 20), im_color(255, 255, 255, y * 25 + 15),
+                          im_brush(35 - y * 3, 255, IM_BRUSH_SHAPE_CIRCULAR));
+    }
+
+    for (int i = 0; i < 360; i += 45) {
+        for (int j = 2; j < 10; j++) {
+            float y = (sin((i + j * 5) * (PI / 180)) * 200 + 400);
+            float x = (cos((i + j * 5) * (PI / 180)) * 200 + 400);
+            image2d_draw_line(image, start, im_point(x, y), im_color(x, y, i, 200),
+                              im_brush(j, 255, IM_BRUSH_SHAPE_CIRCULAR));
+        }
+    }
 }
 
 void point_test(image2d *image) {
-    image2d_draw_point(image, im_point(250, 100), im_color(255, 255, 255, 255), im_brush(2, 1));
-    image2d_draw_point(image, im_point(200, 100), im_color(255, 255, 255, 255), im_brush(5, 1));
-    image2d_draw_point(image, im_point(150, 100), im_color(255, 255, 255, 255), im_brush(7, 1));
-    image2d_draw_point(image, im_point(100, 100), im_color(255, 255, 255, 255), im_brush(10, 1));
-    image2d_draw_point(image, im_point(50, 100), im_color(255, 255, 255, 255), im_brush(40, 1));
+
+    for (int j = 1; j < 4; j++) {
+        for (int i = 1; i < 15; i++) {
+            image2d_draw_point(image, im_point(150 + (i * 30), 50 * j), im_color(255, 255, 255, 255 - j * 80),
+                               im_brush(2 * i, 1, IM_BRUSH_SHAPE_CIRCULAR));
+        }
+    }
 }
 
 int main() {
@@ -44,10 +44,10 @@ int main() {
 
     FILE *out = fopen("../out.ppm", "wb");
     fprintf(out, "P6\n%d %d\n255\n", image->width, image->height);
-    for (int i = 0; i< image->height; i++) {
-        for (int j = 0; j< image->width; j++) {
-            uint8_t* data = im_where(image,j,i);
-            fwrite(data, 3,1,out);
+    for (int i = 0; i < image->height; i++) {
+        for (int j = 0; j < image->width; j++) {
+            uint8_t *data = im_where(image, j, i);
+            fwrite(data, 3, 1, out);
         }
     }
 }
