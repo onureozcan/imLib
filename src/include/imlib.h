@@ -38,6 +38,7 @@ typedef struct {
     uint32_t* alpha_buffer; // prevent overlapping alpha operations
     uint32_t width;
     uint32_t height;
+    uint32_t z_value;
     uint32_t depth; // always 4 bytes (4 channels) for simplicity
 } image2d;
 

@@ -28,7 +28,6 @@ void line_test(image2d *image) {
 }
 
 void point_test(image2d *image) {
-    image2d_draw_point(image, im_point(300, 100), im_color(255, 255, 255, 255), im_brush(1, 1));
     image2d_draw_point(image, im_point(250, 100), im_color(255, 255, 255, 255), im_brush(2, 1));
     image2d_draw_point(image, im_point(200, 100), im_color(255, 255, 255, 255), im_brush(5, 1));
     image2d_draw_point(image, im_point(150, 100), im_color(255, 255, 255, 255), im_brush(7, 1));
