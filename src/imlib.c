@@ -8,12 +8,18 @@
 #include <memory.h>
 #include <stdio.h>
 
-#define USE_ALPHA_BUFF
 
 static im_color4 current_color;
 static im_brush2d current_brush;
 static im_point2d alpha_box_start;
 static im_point2d alpha_box_end;
+
+// y = ax*x + bx + c
+// c = 1
+// a = -b - 1
+static float get_hardness_b_by_pd(float d) {
+    return (d+d*d-1)/(d-d*d);
+}
 
 static float f_abs(float f) {
     return f < 0 ? -f : f;
@@ -32,6 +38,8 @@ static void put_pixel(const image2d *image, im_color4 color, uint32_t x, uint32_
     pixel[3] = a;
 }
 
+#ifdef USE_ALPHA_BUFF
+
 static void put_pixel_alpha_buff(const image2d *image, uint32_t x, uint32_t y, uint8_t a) {
     uint32_t *alpha_buffer = im_alpha_where(image, x, y);
     uint32_t old_alpha = *alpha_buffer;
@@ -41,6 +49,8 @@ static void put_pixel_alpha_buff(const image2d *image, uint32_t x, uint32_t y, u
     }
     *alpha_buffer = new_alpha;
 }
+
+#endif
 
 static void put_pixel_aa(const image2d *image, float xf, float yf, uint8_t a) {
 
@@ -73,27 +83,46 @@ static void put_point(const image2d *image, float xf, float yf) {
     float ceil_y = (yf + half_brush_size);
     float r = half_brush_size;
 
+    float hardness_b = get_hardness_b_by_pd(current_brush.hardness);
+    float hardness_a = -hardness_b - 1;
+
     int steps_x = abs((int) (floor_x - ceil_x)) + 1;
     for (float x = floor_x; steps_x > 0; steps_x--, x++) {
         int steps_y = abs((int) (floor_y - ceil_y)) + 1;
         for (float y = floor_y; steps_y > 0; steps_y--, y++) {
             float x_dist = (xf - x) / r;
             float y_dist = (yf - y) / r;
-            float dist = x_dist * x_dist + y_dist * y_dist;
-            float alpha = (2 - dist) / 2;
-            alpha *= alpha;
-            alpha *= alpha;
-            put_pixel_aa(image, x, y, (int8_t) (alpha * 255));
+            float dist = sqrt(x_dist * x_dist + y_dist * y_dist);
+            float alpha;
+            if (dist < r) {
+                alpha = (hardness_a * dist * dist) + hardness_b * dist + 1;
+                if (alpha < 0) {
+                    alpha = 0;
+                }
+                if (alpha > 1) {
+                    alpha = 1;
+                }
+                put_pixel_aa(image, x, y, (int8_t) (alpha * 255));
+            }
         }
     }
 }
 
 void begin_drawing(image2d *image, im_color4 color, im_brush2d brush) {
+#ifdef USE_ALPHA_BUFF
     memset(image->alpha_buffer, 0,
            image->width * image->height *
            sizeof(uint32_t));
+#endif
     current_color = color;
     current_brush = brush;
+    if (current_brush.hardness >= 1) {
+        current_brush.hardness = .99f;
+    }
+    if (current_brush.hardness <= 0) {
+        current_brush.hardness = .01f;
+    }
+    current_brush.hardness = .5f + current_brush.hardness / 2;
 }
 
 void commit(image2d *image) {
@@ -126,7 +155,9 @@ image2d *image2d_new(uint32_t width, uint32_t height) {
     ret->width = width;
     ret->height = height;
     ret->depth = IM_DEPTH_RGBA_32;
+#ifdef USE_ALPHA_BUFF
     ret->alpha_buffer = ret->data + width * height;
+#endif
     return ret;
 }
 

@@ -10,9 +10,9 @@
 void line_test(image2d *image) {
     im_point2d start = im_point(400, 400);
 
-    for (int y = 0; y < 7; y++) {
-        image2d_draw_line(image, im_point(100, 650 + y * 20), im_point(700, 650 + y * 20), im_color(255, 255, 255, y * 25 + 15),
-                          im_brush(35 - y * 3, 255, IM_BRUSH_SHAPE_CIRCULAR));
+    for (int y = 1; y < 8; y++) {
+        image2d_draw_line(image, im_point(100, 600 + y * 20), im_point(700, 600 + y * 20), im_color(255, 255, 255, 20),
+                          im_brush(y * 2, .9f, IM_BRUSH_SHAPE_CIRCULAR));
     }
 
     for (int i = 0; i < 360; i += 45) {
@@ -20,17 +20,16 @@ void line_test(image2d *image) {
             float y = (sin((i + j * 5) * (PI / 180)) * 200 + 400);
             float x = (cos((i + j * 5) * (PI / 180)) * 200 + 400);
             image2d_draw_line(image, start, im_point(x, y), im_color(x, y, i, 200),
-                              im_brush(j, 255, IM_BRUSH_SHAPE_CIRCULAR));
+                              im_brush(j, .9f, IM_BRUSH_SHAPE_CIRCULAR));
         }
     }
 }
 
 void point_test(image2d *image) {
-
-    for (int j = 1; j < 4; j++) {
+    for (int j = 1; j < 8; j++) {
         for (int i = 1; i < 15; i++) {
-            image2d_draw_point(image, im_point(150 + (i * 30), 50 * j), im_color(255, 255, 255, 255 - j * 80),
-                               im_brush(2 * i, 1, IM_BRUSH_SHAPE_CIRCULAR));
+            image2d_draw_point(image, im_point(150 + (i * 30), 25 * j), im_color(255, 255, 255, 255 - (j - 1) * 40),
+                               im_brush(2 * i, j * .15, IM_BRUSH_SHAPE_CIRCULAR));
         }
     }
 }

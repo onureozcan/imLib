@@ -16,6 +16,8 @@
 #define im_brush(thickness,hardness,shape) ((im_brush2d){(thickness),(hardness),(shape)})
 #define im_point(x,y) ((im_point2d){(x),(y)})
 
+//#define USE_ALPHA_BUFF
+
 #include <stdint.h>
 
 typedef struct {
@@ -39,7 +41,9 @@ typedef struct {
 
 typedef struct {
     uint32_t* data;
+#ifdef USE_ALPHA_BUFF
     uint32_t* alpha_buffer; // prevent overlapping alpha operations
+#endif
     uint32_t width;
     uint32_t height;
     uint32_t depth; // always 4 bytes (4 channels) for simplicity
