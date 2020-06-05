@@ -18,7 +18,7 @@ static im_point2d alpha_box_end;
 // c = 1
 // a = -b - 1
 static float get_hardness_b_by_pd(float d) {
-    return (d+d*d-1)/(d-d*d);
+    return (d + d * d - 1) / (d - d * d);
 }
 
 static float f_abs(float f) {
@@ -31,7 +31,7 @@ static uint8_t blend(uint8_t a, uint8_t b, uint8_t alpha) {
 
 static void put_pixel(const image2d *image, im_color4 color, uint32_t x, uint32_t y, uint8_t a) {
     uint8_t *pixel = im_where(image, x, y);
-    a = (color.a * a)/255;
+    a = (color.a * a) / 255;
     pixel[0] = blend(color.r, pixel[0], a);
     pixel[1] = blend(color.g, pixel[1], a);
     pixel[2] = blend(color.b, pixel[2], a);
@@ -161,16 +161,9 @@ image2d *image2d_new(uint32_t width, uint32_t height) {
     return ret;
 }
 
-void image2d_draw_line(image2d *image, im_point2d start, im_point2d end, im_color4 color, im_brush2d brush) {
-
-    begin_drawing(image, color, brush);
-    alpha_box_start.x = start.x;
-    alpha_box_start.y = start.y;
-    alpha_box_end.x = end.x;
-    alpha_box_end.y = end.y;
-
+static void dda(const image2d *image, im_point2d *start, im_point2d *end) {
     // DDA line drawing algorithm
-    float x, y, x1 = start.x, y1 = start.y, x2 = end.x, y2 = end.y, dx, dy, step;
+    float x, y, x1 = (*start).x, y1 = (*start).y, x2 = (*end).x, y2 = (*end).y, dx, dy, step;
     int i;
 
     dx = (x2 - x1);
@@ -190,13 +183,19 @@ void image2d_draw_line(image2d *image, im_point2d start, im_point2d end, im_colo
     x = x1;
     y = y1;
 
-    i = 1;
+    i = 0;
     while (i <= step) {
         put_point(image, x, y);
         x = x + dx;
         y = y + dy;
         i = i + 1;
     }
+}
+
+void image2d_draw_line(image2d *image, im_point2d start, im_point2d end, im_color4 color, im_brush2d brush) {
+
+    begin_drawing(image, color, brush);
+    dda(image, &start, &end);
     commit(image);
 }
 
@@ -208,4 +207,27 @@ void image2d_draw_point(image2d *image, im_point2d center, im_color4 color, im_b
     begin_drawing(image, color, brush);
     put_point(image, center.x, center.y);
     commit(image);
+}
+
+static im_point2d get_interpolated_point(im_point2d p1, im_point2d p2, float t) {
+    im_point2d p;
+    p.x = (p1.x + t * (p2.x - p1.x));
+    p.y = (p1.y + t * (p2.y - p1.y));
+    return p;
+}
+
+void image2d_draw_bezier3(image2d *image, im_point2d start, im_point2d control, im_point2d end, im_color4 color,
+                          im_brush2d brush) {
+    begin_drawing(image, color, brush);
+    im_point2d prev = start;
+    im_point2d current;
+    int t_limit = 1000;
+    for (int i = 1; i <= t_limit; i++) {
+        float t = (float)i / t_limit;
+        im_point2d sub1 = get_interpolated_point(start, control, t);
+        im_point2d sub2 = get_interpolated_point(control, end, t);
+        current = get_interpolated_point(sub1, sub2, t);
+        image2d_draw_line(image, prev, current, color, brush);
+        prev = current;
+    }
 }
