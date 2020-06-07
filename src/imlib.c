@@ -142,7 +142,7 @@ void commit(image2d *image) {
 /// ------------------ api methods
 
 void imlib_init() {
-    font = read_ttf("../FreeMono.ttf");
+    font = read_ttf("../FreeSans.ttf");
 }
 
 image2d *image2d_new(uint32_t width, uint32_t height) {
@@ -249,32 +249,50 @@ void image2d_draw_bezier3(image2d *image, im_point2d start, im_point2d control, 
 
 void
 image2d_draw_char(image2d *image, im_point2d start, char character, uint16_t size, im_color4 color, im_brush2d brush) {
-    int index = 37;
-    ttf_glyph glyph = font->glyphs[index];
 
-    if (!glyph.is_simple) {
+    int index = (int)character - 29;
+    ttf_glyph glyph = font->glyphs[index];
+    if (!glyph.is_simple || !glyph.num_contours) {
         return;
     }
-
     int c = 0, first = 1;
-    ttf_glyph_point prev_point;
+
     ttf_glyph_point current_point;
+
     im_point2d start_point;
+    im_point2d bezier_points[50];
+
+    int bezier_points_size = 0;
+
     for (int i = 0; i < glyph.simple_glyph.points_length; i++) {
+
         current_point = glyph.simple_glyph.points[i];
-        im_point2d current = im_point(current_point.x + start.x, current_point.y + start.y);
-        im_point2d prev = im_point(prev_point.x + start.x, prev_point.y + start.y);
+        im_point2d current = im_point(current_point.x * .5 + start.x, (glyph.y_max - current_point.y) * .5 + start.y);
+        bezier_points[bezier_points_size++] = current;
+
         if (first) {
             first = 0;
             start_point = current;
-        } else {
-            image2d_draw_line(image, current, prev, color, brush);
+            bezier_points_size = 0;
         }
+
+        if (current_point.on_curve) {
+            if (bezier_points_size > 1)
+                image2d_draw_bezier_n(image, bezier_points, bezier_points_size, color, brush);
+            bezier_points_size = 0;
+            image2d_draw_point(image, current, im_color(255,0,0,255), im_brush(5,.5,IM_BRUSH_SHAPE_CIRCULAR));
+            bezier_points[bezier_points_size++] = current;
+        } else {
+            image2d_draw_point(image, current, im_color(0,255,0,255), im_brush(5,.5,IM_BRUSH_SHAPE_CIRCULAR));
+        }
+
         if (i == glyph.simple_glyph.end_points[c]) {
             c += 1;
             first = 1;
-            image2d_draw_line(image, current, start_point, color, brush);
+            bezier_points[bezier_points_size++] = start_point;
+            if (bezier_points_size > 1){
+                image2d_draw_bezier_n(image, bezier_points, bezier_points_size, im_color(255,255,0,255), brush);
+            }
         }
-        prev_point = current_point;
     }
 }
