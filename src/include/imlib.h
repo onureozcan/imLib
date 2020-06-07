@@ -61,6 +61,6 @@ void image2d_draw_bezier3(image2d* image, im_point2d start, im_point2d control, 
 
 void image2d_draw_bezier_n(image2d* image, im_point2d* points, int n, im_color4 color, im_brush2d brush);
 
-void image2d_draw_char(image2d* image, im_point2d start, char c, uint16_t size, im_color4 color, im_brush2d brush);
+float image2d_draw_char(image2d* image, im_point2d start, char c, uint16_t size, im_color4 color, im_brush2d brush);
 
 #endif //IMAGELIB_IMLIB_H

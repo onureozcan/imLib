@@ -54,7 +54,11 @@ void bezier_test(image2d* image) {
 }
 
 void ttf_test(image2d* image) {
-    image2d_draw_char(image, im_point(200,200), 'a', 15, im_color(255,255,255,255),im_brush(3,0,IM_BRUSH_SHAPE_CIRCULAR));
+    char* test = "I am typing now!";
+    float x = 100;
+    for (int i = 0; i <strlen(test); i++) {
+        x = image2d_draw_char(image, im_point(x, 580), test[i], 30, im_color(150,255,10 + i * 30,255),im_brush(2,0,IM_BRUSH_SHAPE_CIRCULAR));
+    }
 }
 
 int main() {
