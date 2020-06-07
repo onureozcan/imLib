@@ -7,7 +7,7 @@ set(DEBUG_FLAG "-g")
 set(CMAKE_C_FLAGS "-m32 -Wall ${DEBUG_FLAG}")
 
 include_directories(src/include)
-add_library(imageLib src/imlib.c )
+add_library(imageLib src/imlib.c src/ttf.c)
 
 add_executable(main src/main.c)
 

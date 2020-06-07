@@ -53,13 +53,20 @@ void bezier_test(image2d* image) {
     }
 }
 
+void ttf_test(image2d* image) {
+    image2d_draw_char(image, im_point(200,200), 'a', 15, im_color(255,255,255,255),im_brush(3,0,IM_BRUSH_SHAPE_CIRCULAR));
+}
+
 int main() {
+
+    imlib_init();
     image2d *image = image2d_new(800, 800);
     if (!image)
         return 1;
     point_test(image);
     line_test(image);
     bezier_test(image);
+    ttf_test(image);
 
     FILE *out = fopen("../out.ppm", "wb");
     fprintf(out, "P6\n%d %d\n255\n", image->width, image->height);
