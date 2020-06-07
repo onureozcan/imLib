@@ -211,20 +211,40 @@ static im_point2d get_interpolated_point(im_point2d p1, im_point2d p2, float t) 
     return p;
 }
 
-void image2d_draw_bezier3(image2d *image, im_point2d start, im_point2d control, im_point2d end, im_color4 color,
-                          im_brush2d brush) {
+static im_point2d get_bezier_point(im_point2d *points, int n, float t) {
+    if (n == 2) {
+        return get_interpolated_point(points[0], points[1], t);
+    } else {
+        im_point2d *points_derived = (im_point2d *) malloc(sizeof(im_point2d) * (n));
+        memcpy(points_derived, points, sizeof(im_point2d) * (n));
+        while (n > 2) {
+            n--;
+            for (int i = 0; i < n; i++) {
+                points_derived[i] = get_interpolated_point(points_derived[i], points_derived[i + 1], t);
+            }
+        }
+        im_point2d ret = get_interpolated_point(points_derived[0], points_derived[1], t);
+        free(points_derived);
+        return ret;
+    }
+}
+
+void image2d_draw_bezier_n(image2d *image, im_point2d *points, int n, im_color4 color, im_brush2d brush) {
     begin_drawing(image, color, brush);
-    im_point2d prev = start;
+    im_point2d prev = points[0];
     im_point2d current;
     int t_limit = 500;
     for (int i = 1; i <= t_limit; i++) {
         float t = (float) i / t_limit;
-        im_point2d sub1 = get_interpolated_point(start, control, t);
-        im_point2d sub2 = get_interpolated_point(control, end, t);
-        current = get_interpolated_point(sub1, sub2, t);
+        current = get_bezier_point(points, n, t);
         image2d_draw_line(image, prev, current, color, brush);
         prev = current;
     }
+}
+
+void image2d_draw_bezier3(image2d *image, im_point2d start, im_point2d control, im_point2d end, im_color4 color,
+                          im_brush2d brush) {
+    image2d_draw_bezier_n(image,((im_point2d[3]){ start, control, end }), 3, color, brush);
 }
 
 void
