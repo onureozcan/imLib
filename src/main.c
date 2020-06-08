@@ -45,20 +45,31 @@ void point_test(image2d *image) {
     }
 }
 
-void bezier_test(image2d* image) {
-    for(int i = 1; i < 10; i++) {
-        image2d_draw_bezier3(image, im_point(350,250 + i * 15), im_point(600, 150 + i * 15), im_point(520, 250 + i * 15),
-                im_color(255 + i * 5, 255 * i * 25, i * 8, 250),
-                im_brush(1 + i, 0, IM_BRUSH_SHAPE_CIRCULAR));
+void bezier_test(image2d *image) {
+    for (int i = 1; i < 10; i++) {
+        image2d_draw_bezier3(image, im_point(350, 250 + i * 15), im_point(600, 150 + i * 15),
+                             im_point(520, 250 + i * 15),
+                             im_color(255 + i * 5, 255 * i * 25, i * 8, 250),
+                             im_brush(1 + i, 0, IM_BRUSH_SHAPE_CIRCULAR));
     }
 }
 
-void ttf_test(image2d* image) {
-    char* test = "I am typing now!";
+void ttf_test(image2d *image) {
+    char *test = "i am typing now!";
     float x = 100;
-    for (int i = 0; i <strlen(test); i++) {
-        x = image2d_draw_char(image, im_point(x, 580), test[i], 30, im_color(150,255,10 + i * 30,255),im_brush(2,0,IM_BRUSH_SHAPE_CIRCULAR));
+    for (int i = 0; i < strlen(test); i++) {
+        x = image2d_draw_char(image, im_point(x, 580), test[i], 45, im_color(50, 255, 10 + i * 80, 250),
+                              im_brush(3, 0, IM_BRUSH_SHAPE_CIRCULAR));
     }
+}
+
+void filled_shape_test(image2d *image) {
+    im_point2d points[] = {im_point(180, 650),
+                           im_point(80, 750),
+                           im_point(150, 750),
+                           im_point(250, 700),
+                           im_point(550, 750)};
+    image2d_draw_shape(image, points, 5, im_color(255, 255, 255, 127), im_brush(3, 0, IM_BRUSH_SHAPE_CIRCULAR), 1);
 }
 
 int main() {
@@ -71,6 +82,7 @@ int main() {
     line_test(image);
     bezier_test(image);
     ttf_test(image);
+    filled_shape_test(image);
 
     FILE *out = fopen("../out.ppm", "wb");
     fprintf(out, "P6\n%d %d\n255\n", image->width, image->height);

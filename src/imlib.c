@@ -34,7 +34,7 @@ static void put_pixel(const image2d *image, im_color4 color, uint32_t x, uint32_
     pixel[0] = blend(color.r, pixel[0], a);
     pixel[1] = blend(color.g, pixel[1], a);
     pixel[2] = blend(color.b, pixel[2], a);
-    pixel[3] = a;
+    pixel[3] = 255;
 }
 
 #ifdef USE_ALPHA_BUFF
@@ -142,7 +142,7 @@ void commit(image2d *image) {
 /// ------------------ api methods
 
 void imlib_init() {
-    font = read_ttf("../Ubuntu-L.ttf");
+    font = read_ttf("../Ubuntu-R.ttf");
 }
 
 image2d *image2d_new(uint32_t width, uint32_t height) {
@@ -233,14 +233,14 @@ void image2d_draw_bezier_n(image2d *image, im_point2d *points, int n, im_color4 
     begin_drawing(image, color, brush);
     im_point2d prev = points[0];
     im_point2d current;
-    int t_limit = 500;
+    int t_limit = 1000;
     for (int i = 1; i <= t_limit; i++) {
         float t = (float) i / t_limit;
         current = get_bezier_point(points, n, t);
         float dx = current.x - prev.x;
         float dy = current.y - prev.y;
         float d = dx * dx + dy * dy;
-        if (d > 2.5) {
+        if (d >= 2.5) {
             image2d_draw_line(image, prev, current, color, brush);
             prev = current;
         }
@@ -252,17 +252,81 @@ void image2d_draw_bezier3(image2d *image, im_point2d start, im_point2d control, 
     image2d_draw_bezier_n(image, ((im_point2d[3]) {start, control, end}), 3, color, brush);
 }
 
+/**
+ * calculates number of ray hits in a given f(x) = y line, against a given line consisting of 2 points
+ * @param y the y coordinate of hit
+ * @param p1 start point of line
+ * @param p2 end point of line
+ * @param hit_count current hit count
+ * @param x_hits array of hit positions
+ * @return updates x_hits and returns hit_count
+ */
+static int scanline_get_hits(float y, im_point2d p1, im_point2d p2, int hit_count, float *x_hits) {
+    if ((y < p1.y && y > p2.y) || (y > p1.y && y < p2.y)) {
+        float m = (p2.y - p1.y) / (p2.x - p1.x);
+        if (m == 0) {
+            // slope is 0, add both x's
+            x_hits[hit_count++] = p1.x;
+            x_hits[hit_count++] = p2.x;
+        } else {
+            // y = mx + n
+            float n = p1.y - m * p1.x;
+            float x = (y - n) / m;
+            x_hits[hit_count++] = x;
+        }
+    }
+    return hit_count;
+}
+
+void image2d_draw_shape(image2d *image, im_point2d *points, int n, im_color4 color, im_brush2d brush, int fill) {
+    if (!fill) {
+        for (int i = 1; i < n; i++) {
+            image2d_draw_line(image, points[i], points[i - 1], color, brush);
+        }
+        image2d_draw_line(image, points[n - 1], points[0], color, brush);
+    } else {
+        float min_y = image->height, max_y = 0, min_x = image->width, max_x = 0;
+        for (int i = 0; i < n; i++) {
+            im_point2d point = points[i];
+            if (point.y > max_y) {
+                max_y = point.y;
+            }
+            if (point.y < min_y) {
+                min_y = point.y;
+            }
+            if (point.x > max_x) {
+                max_x = point.x;
+            }
+            if (point.x < min_x) {
+                min_x = point.x;
+            }
+        }
+        float x_hits[1000];
+        int hit_count = 0;
+        for (float y = min_y; y < max_y; y++) {
+            hit_count = 0;
+            for (int i = 1; i < n; i++) {
+                hit_count = scanline_get_hits(y, points[i], points[i - 1], hit_count, x_hits);
+            }
+            hit_count = scanline_get_hits(y, points[n - 1], points[0], hit_count, x_hits);
+            for (int i = 1; i < hit_count; i += 2) {
+                image2d_draw_line(image, im_point(x_hits[i], y), im_point(x_hits[i - 1], y), color, brush);
+            }
+        }
+    }
+}
+
 float
 image2d_draw_char(image2d *image, im_point2d start, char character, uint16_t size, im_color4 color, im_brush2d brush) {
 
-    if (character ==' ')  return start.x + size;
+    if (character == ' ') return start.x + size;
 
     int index = (int) character - 29;
     ttf_glyph glyph = font->glyphs[index];
     if (!glyph.is_simple || !glyph.num_contours) {
         return size;
     }
-    float scale = ((float)size)/(glyph.y_max - glyph.y_min);
+    float scale = ((float) size) / (glyph.y_max - glyph.y_min);
 
     int c = 0, first = 1;
 
@@ -278,7 +342,8 @@ image2d_draw_char(image2d *image, im_point2d start, char character, uint16_t siz
     for (int i = 0; i < glyph.simple_glyph.points_length; i++) {
 
         current_point = glyph.simple_glyph.points[i];
-        im_point2d current = im_point(current_point.x * scale + start.x, (glyph.y_max - current_point.y) * scale + start.y);
+        im_point2d current = im_point(current_point.x * scale + start.x,
+                                      (glyph.y_max - current_point.y) * scale + start.y);
         bezier_points[bezier_points_size++] = current;
 
         if (x_max < current.x) {
@@ -295,7 +360,7 @@ image2d_draw_char(image2d *image, im_point2d start, char character, uint16_t siz
             if (bezier_points_size > 1)
                 image2d_draw_bezier_n(image, bezier_points, bezier_points_size, color, brush);
             bezier_points_size = 0;
-           // image2d_draw_point(image, current, im_color(255, 0, 0, 255), im_brush(5, .5, IM_BRUSH_SHAPE_CIRCULAR));
+            // image2d_draw_point(image, current, im_color(255, 0, 0, 255), im_brush(5, .5, IM_BRUSH_SHAPE_CIRCULAR));
             bezier_points[bezier_points_size++] = current;
         } else {
             //image2d_draw_point(image, current, im_color(0, 255, 0, 255), im_brush(5, .5, IM_BRUSH_SHAPE_CIRCULAR));
@@ -310,5 +375,6 @@ image2d_draw_char(image2d *image, im_point2d start, char character, uint16_t siz
             }
         }
     }
+
     return x_max + size * scale;
 }
