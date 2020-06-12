@@ -12,6 +12,24 @@
 static im_color4 current_color;
 static im_brush2d current_brush;
 static ttf_file *font;
+static int font_drawing;
+static int glyph_curve_coordinate_count;
+static int glyph_end_indexes_count;
+static int glyph_end_points[20];
+static im_point2d glyph_curve_coordinates[1000000];
+
+void buble_sort(int a[], int array_size) {
+    int i, j, temp;
+    for (i = 0; i < (array_size - 1); ++i) {
+        for (j = 0; j < array_size - 1 - i; ++j) {
+            if (a[j] > a[j + 1]) {
+                temp = a[j + 1];
+                a[j + 1] = a[j];
+                a[j] = temp;
+            }
+        }
+    }
+}
 
 // y = ax*x + bx + c
 // c = 1
@@ -142,7 +160,7 @@ void commit(image2d *image) {
 /// ------------------ api methods
 
 void imlib_init() {
-    font = read_ttf("../Ubuntu-R.ttf");
+    font = read_ttf("../Ubuntu-L.ttf");
 }
 
 image2d *image2d_new(uint32_t width, uint32_t height) {
@@ -184,7 +202,11 @@ static void dda(const image2d *image, im_point2d *start, im_point2d *end) {
 
     i = 0;
     while (i <= step) {
-        put_point(image, x, y);
+        if (font_drawing) {
+            glyph_curve_coordinates[glyph_curve_coordinate_count++] = im_point(x, y);
+        } else {
+            put_point(image, x, y);
+        }
         x = x + dx;
         y = y + dy;
         i = i + 1;
@@ -233,17 +255,20 @@ void image2d_draw_bezier_n(image2d *image, im_point2d *points, int n, im_color4 
     begin_drawing(image, color, brush);
     im_point2d prev = points[0];
     im_point2d current;
-    int t_limit = 1000;
-    for (int i = 1; i <= t_limit; i++) {
+    int t_limit = 100;
+    for (int i = 0; i <= t_limit; i++) {
         float t = (float) i / t_limit;
         current = get_bezier_point(points, n, t);
         float dx = current.x - prev.x;
         float dy = current.y - prev.y;
         float d = dx * dx + dy * dy;
-        if (d >= 2.5) {
+        if (d >= 2.5 || font_drawing) {
             image2d_draw_line(image, prev, current, color, brush);
             prev = current;
         }
+    }
+    if (prev.x != current.x || prev.y != current.y) {
+        image2d_draw_line(image, prev, current, color, brush);
     }
 }
 
@@ -262,28 +287,43 @@ void image2d_draw_bezier3(image2d *image, im_point2d start, im_point2d control, 
  * @return updates x_hits and returns hit_count
  */
 static int scanline_get_hits(float y, im_point2d p1, im_point2d p2, int hit_count, float *x_hits) {
-    if ((y < p1.y && y > p2.y) || (y > p1.y && y < p2.y)) {
-        float m = (p2.y - p1.y) / (p2.x - p1.x);
-        if (m == 0) {
-            // slope is 0, add both x's
-            x_hits[hit_count++] = p1.x;
+    if ((y <= p1.y && y >= p2.y) || (y >= p1.y && y <= p2.y)) {
+        if ((p2.x - p1.x) == 0) {
             x_hits[hit_count++] = p2.x;
         } else {
-            // y = mx + n
-            float n = p1.y - m * p1.x;
-            float x = (y - n) / m;
-            x_hits[hit_count++] = x;
+            float m = (p2.y - p1.y) / (p2.x - p1.x);
+            if (m == 0) {
+                // slope is 0, add both x's
+                x_hits[hit_count++] = p1.x;
+                x_hits[hit_count++] = p2.x;
+            } else {
+                // y = mx + n
+                float n = p1.y - m * p1.x;
+                float x = (y - n) / m;
+                x_hits[hit_count++] = x;
+            }
         }
     }
     return hit_count;
 }
 
-void image2d_draw_shape(image2d *image, im_point2d *points, int n, im_color4 color, im_brush2d brush, int fill) {
+void image2d_draw_shape(image2d *image, im_point2d *points, int n, int *end_points, int endpoint_count, im_color4 color,
+                        im_brush2d brush, int fill) {
+    int c = 0;
     if (!fill) {
+        contours:
+        c = 0;
+        im_point2d start = points[0];
         for (int i = 1; i < n; i++) {
+            if (end_points && end_points[c] == i) {
+                c++;
+                image2d_draw_line(image, points[i - 1], start, color, brush);
+                start = points[i];
+                continue;
+            }
             image2d_draw_line(image, points[i], points[i - 1], color, brush);
         }
-        image2d_draw_line(image, points[n - 1], points[0], color, brush);
+        image2d_draw_line(image, points[n - 1], start, im_color(0, 255, 255, 100), brush);
     } else {
         float min_y = image->height, max_y = 0, min_x = image->width, max_x = 0;
         for (int i = 0; i < n; i++) {
@@ -301,18 +341,42 @@ void image2d_draw_shape(image2d *image, im_point2d *points, int n, im_color4 col
                 min_x = point.x;
             }
         }
-        float x_hits[1000];
+        float x_hits[100];
         int hit_count = 0;
-        for (float y = min_y; y < max_y; y++) {
+        for (int y = min_y + 1; y < max_y; y += 1) {
             hit_count = 0;
+            c = 0;
+            im_point2d start = points[0];
             for (int i = 1; i < n; i++) {
+                if (end_points[c] == i) {
+                    c++;
+                    hit_count = scanline_get_hits(y, points[i - 1], start, hit_count, x_hits);
+                    start = points[i];
+                    continue;
+                }
                 hit_count = scanline_get_hits(y, points[i], points[i - 1], hit_count, x_hits);
             }
-            hit_count = scanline_get_hits(y, points[n - 1], points[0], hit_count, x_hits);
-            for (int i = 1; i < hit_count; i += 2) {
-                image2d_draw_line(image, im_point(x_hits[i], y), im_point(x_hits[i - 1], y), color, brush);
+            hit_count = scanline_get_hits(y, points[n - 1], start, hit_count, x_hits);
+            buble_sort(x_hits, hit_count);
+
+            if (hit_count > 0) {
+                float prev = x_hits[0];
+                int outside = 0;
+                for (int i = 1; i < hit_count; i++) {
+                    float current = x_hits[i];
+                    if (current == prev) {
+                        continue;
+                    }
+                    if (!outside) {
+                        image2d_draw_line(image, im_point(current, y), im_point(prev, y), color,
+                                      im_brush(3, brush.hardness, IM_BRUSH_SHAPE_CIRCULAR));
+                    }
+                    outside = !outside;
+                    prev = current;
+                }
             }
         }
+        goto contours;
     }
 }
 
@@ -320,6 +384,10 @@ float
 image2d_draw_char(image2d *image, im_point2d start, char character, uint16_t size, im_color4 color, im_brush2d brush) {
 
     if (character == ' ') return start.x + size;
+
+    font_drawing = 1;
+    glyph_curve_coordinate_count = 0;
+    glyph_end_indexes_count = 0;
 
     int index = (int) character - 29;
     ttf_glyph glyph = font->glyphs[index];
@@ -353,13 +421,16 @@ image2d_draw_char(image2d *image, im_point2d start, char character, uint16_t siz
         if (first) {
             first = 0;
             start_point = current;
-            bezier_points_size = 0;
+//            image2d_draw_point(image, current, im_color(100 * (c + 1), 255, 0, 100),
+//                               im_brush(5, 0, IM_BRUSH_SHAPE_CIRCULAR));
+//            printf("start: %f, %f \n", current.x, current.y);
         }
 
         if (current_point.on_curve) {
-            if (bezier_points_size > 1)
+            if (bezier_points_size > 1) {
                 image2d_draw_bezier_n(image, bezier_points, bezier_points_size, color, brush);
-            bezier_points_size = 0;
+                bezier_points_size = 0;
+            }
             // image2d_draw_point(image, current, im_color(255, 0, 0, 255), im_brush(5, .5, IM_BRUSH_SHAPE_CIRCULAR));
             bezier_points[bezier_points_size++] = current;
         } else {
@@ -372,8 +443,17 @@ image2d_draw_char(image2d *image, im_point2d start, char character, uint16_t siz
             bezier_points[bezier_points_size++] = start_point;
             if (bezier_points_size > 1) {
                 image2d_draw_bezier_n(image, bezier_points, bezier_points_size, color, brush);
+                bezier_points_size = 0;
             }
+            glyph_end_points[glyph_end_indexes_count++] = glyph_curve_coordinate_count;
         }
+    }
+
+    if (font_drawing) {
+        font_drawing = 0;
+        image2d_draw_shape(image, glyph_curve_coordinates, glyph_curve_coordinate_count, glyph_end_points,
+                           glyph_end_indexes_count, color, brush, 1);
+        glyph_end_indexes_count = 0;
     }
 
     return x_max + size * scale;

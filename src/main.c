@@ -55,34 +55,24 @@ void bezier_test(image2d *image) {
 }
 
 void ttf_test(image2d *image) {
-    char *test = "i am typing now!";
-    float x = 100;
+    char *test = "I am typing now!";
+    float x = 10;
     for (int i = 0; i < strlen(test); i++) {
-        x = image2d_draw_char(image, im_point(x, 580), test[i], 45, im_color(50, 255, 10 + i * 80, 250),
-                              im_brush(3, 0, IM_BRUSH_SHAPE_CIRCULAR));
+        x = image2d_draw_char(image, im_point(x, 700), test[i], 40, im_color(255,255,255,55),
+                              im_brush(1.5f, 1, IM_BRUSH_SHAPE_CIRCULAR));
     }
-}
-
-void filled_shape_test(image2d *image) {
-    im_point2d points[] = {im_point(180, 650),
-                           im_point(80, 750),
-                           im_point(150, 750),
-                           im_point(250, 700),
-                           im_point(550, 750)};
-    image2d_draw_shape(image, points, 5, im_color(255, 255, 255, 127), im_brush(3, 0, IM_BRUSH_SHAPE_CIRCULAR), 1);
 }
 
 int main() {
 
     imlib_init();
-    image2d *image = image2d_new(800, 800);
+    image2d *image = image2d_new(1000, 1000);
     if (!image)
         return 1;
     point_test(image);
     line_test(image);
     bezier_test(image);
     ttf_test(image);
-    filled_shape_test(image);
 
     FILE *out = fopen("../out.ppm", "wb");
     fprintf(out, "P6\n%d %d\n255\n", image->width, image->height);
